@@ -6,7 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter, Link } from 'wouter';
 import { Activity, AlertTriangle, ArrowDownToLine, CalendarDays, ChevronRight, CircleHelp, ClipboardList, ExternalLink, Info, Save, Shield, Swords, Users, X } from 'lucide-react';
-import { initialState, Match, MatchStatus, PlayerStat, resolveMatch, RoundKey, roundNames, scoreLabel, STORAGE_KEY, Team, TournamentState } from './tournament';
+import { initialState, LEGACY_STORAGE_KEY, Match, MatchStatus, migrateLegacyState, PlayerStat, resolveMatch, RoundKey, roundNames, scoreLabel, STORAGE_KEY, Team, TournamentState } from './tournament';
 
 const queryClient = new QueryClient();
 type Filter = 'Все' | MatchStatus;
@@ -15,11 +15,13 @@ type AdminTab = 'matches' | 'teams' | 'players';
 function useTournament() {
   const [savedSnapshot] = useState((): { state: TournamentState; warning: string } => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const currentSaved = localStorage.getItem(STORAGE_KEY);
+      const migratingLegacyData = !currentSaved;
+      const saved = currentSaved ?? localStorage.getItem(LEGACY_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as TournamentState;
         if (Array.isArray(parsed.teams) && Array.isArray(parsed.matches)) {
-          return { state: parsed, warning: '' };
+          return { state: migratingLegacyData ? migrateLegacyState(parsed) : parsed, warning: '' };
         }
         return { state: initialState, warning: 'Сохранённые данные повреждены: загружен исходный демонстрационный набор.' };
       }
@@ -159,7 +161,7 @@ function Home({state,storageWarning}:{state:TournamentState;storageWarning:strin
   return <main className="page-wrap">
     <section className="hero">
       <div><div className="eyebrow">Открытый школьный чемпионат · сезон 2026</div><h1>Играем<br/><span>за свой класс.</span></h1><p className="hero-sub">Шестнадцать команд. Одна сетка. Большой финал на большой перемене — следи за ходом кубка и результатами каждой встречи.</p></div>
-      <div className="hero-side"><strong>10—31 окт</strong><small>2026 · ДЕМО-СЕЗОН</small></div>
+      <div className="hero-side"><strong>26—31 окт</strong><small>2026 · ДЕМО-СЕЗОН</small></div>
     </section>
     <section className="scoreboard" aria-label="Показатели турнира">
       <div className="stat-block"><div className="stat-label">Команды</div><div className="stat-value">16 <em>/ 16</em></div></div>
@@ -341,8 +343,8 @@ function Admin({state,updateMatch,updateTeam,reset,setState,storageWarning}:{sta
           <p style={{fontSize:9,color:'#848890',marginTop:14}}>Каждое поле сохраняется автоматически. Изменения сразу видны в публичной сетке.</p>
         </div>}
         {tab==='teams'&&<div className="admin-card"><h3>Состав участников <span className="eyebrow">· 16 команд</span></h3>
-          {state.teams.map(team=><div className="admin-team-row" key={team.id} data-testid={`admin-team-${team.id}`}><TeamMark team={team}/><div className="field"><label htmlFor={`team-name-${team.id}`}>Название команды</label><input id={`team-name-${team.id}`} value={team.name} onChange={event=>updateTeam(team.id,{name:event.target.value})} data-testid={`input-team-name-${team.id}`}/></div><div className="field"><label htmlFor={`team-school-${team.id}`}>Школа</label><input id={`team-school-${team.id}`} value={team.school} onChange={event=>updateTeam(team.id,{school:event.target.value})} data-testid={`input-team-school-${team.id}`}/></div><div className="field"><label htmlFor={`team-short-${team.id}`}>Эмблема · текст</label><input id={`team-short-${team.id}`} value={team.short} maxLength={4} onChange={event=>updateTeam(team.id,{short:event.target.value.toUpperCase()})} data-testid={`input-team-mark-${team.id}`}/></div><div className="field"><label htmlFor={`team-color-${team.id}`}>Цвет эмблемы</label><div className="team-color-field"><input type="color" id={`team-color-${team.id}`} value={team.color} onChange={event=>updateTeam(team.id,{color:event.target.value})} aria-label={`Цвет эмблемы команды ${team.name}`} data-testid={`input-team-color-${team.id}`}/><span>{team.color}</span></div></div></div>)}
-          <p style={{fontSize:9,color:'#848890',marginTop:12}}>Название, школа и эмблема участников сохраняются автоматически и отображаются в сетке.</p>
+          {state.teams.map(team=><div className="admin-team-row" key={team.id} data-testid={`admin-team-${team.id}`}><TeamMark team={team}/><div className="field"><label htmlFor={`team-name-${team.id}`}>Название команды</label><input id={`team-name-${team.id}`} value={team.name} onChange={event=>updateTeam(team.id,{name:event.target.value})} data-testid={`input-team-name-${team.id}`}/></div><div className="field"><label htmlFor={`team-short-${team.id}`}>Эмблема · текст</label><input id={`team-short-${team.id}`} value={team.short} maxLength={4} onChange={event=>updateTeam(team.id,{short:event.target.value.toUpperCase()})} data-testid={`input-team-mark-${team.id}`}/></div><div className="field"><label htmlFor={`team-color-${team.id}`}>Цвет эмблемы</label><div className="team-color-field"><input type="color" id={`team-color-${team.id}`} value={team.color} onChange={event=>updateTeam(team.id,{color:event.target.value})} aria-label={`Цвет эмблемы команды ${team.name}`} data-testid={`input-team-color-${team.id}`}/><span>{team.color}</span></div></div></div>)}
+          <p style={{fontSize:9,color:'#848890',marginTop:12}}>Название команды и её эмблема сохраняются автоматически и отображаются в сетке.</p>
         </div>}
         {tab==='players'&&<div className="admin-card"><h3>Статистика игроков</h3><div className="field" style={{maxWidth:360,marginBottom:15}}><label htmlFor="stats-match">Выбери матч</label><select id="stats-match" value={playerMatch} onChange={event=>setPlayerMatch(event.target.value)} data-testid="select-player-match">{state.matches.map(match=>{const pair=resolveMatch(state,match);return <option key={match.id} value={match.id}>{pair.a?.name??'Участник'} — {pair.b?.name??'Участник'} · {roundNames[match.round]}</option>})}</select></div>
           <div className="demo-note" style={{marginBottom:15}}><Users size={15}/><span>Добавляй строки игрокам матча. Уб. — убийства, См. — смерти, Пом. — помощи, HS — попадания в голову.</span></div>

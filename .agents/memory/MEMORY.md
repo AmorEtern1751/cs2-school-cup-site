@@ -1,0 +1,1 @@
+- [Tournament scope](tournament-scope.md) — the CS2 Cup is for teams from one school; school affiliation is not team-level data.
