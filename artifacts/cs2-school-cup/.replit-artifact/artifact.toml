@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Кубок школы по CS2"
+description = "Русскоязычный сайт школьного турнира по CS2 на 16 команд: турнирная сетка, карточки матчей, статистика игроков и демо-панель администратора с сохранением изменений в браузере."
+version = "1.0.0"
+id = "artifacts/cs2-school-cup"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23234
+
+[services.development]
+run = "pnpm --filter @workspace/cs2-school-cup run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/cs2-school-cup", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/cs2-school-cup/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23234"
+BASE_PATH = "/"
