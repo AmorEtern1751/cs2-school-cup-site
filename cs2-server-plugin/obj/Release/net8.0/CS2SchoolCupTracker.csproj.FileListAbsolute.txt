@@ -1,0 +1,12 @@
+C:\Users\aetn\Desktop\CS2-Turnir-shkolnyi-kubok\cs2-server-plugin\obj\Release\net8.0\CS2SchoolCupTracker.csproj.AssemblyReference.cache
+C:\Users\aetn\Desktop\CS2-Turnir-shkolnyi-kubok\cs2-server-plugin\obj\Release\net8.0\CS2SchoolCupTracker.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\aetn\Desktop\CS2-Turnir-shkolnyi-kubok\cs2-server-plugin\obj\Release\net8.0\CS2SchoolCupTracker.AssemblyInfoInputs.cache
+C:\Users\aetn\Desktop\CS2-Turnir-shkolnyi-kubok\cs2-server-plugin\obj\Release\net8.0\CS2SchoolCupTracker.AssemblyInfo.cs
+C:\Users\aetn\Desktop\CS2-Turnir-shkolnyi-kubok\cs2-server-plugin\obj\Release\net8.0\CS2SchoolCupTracker.csproj.CoreCompileInputs.cache
+C:\Users\aetn\Desktop\CS2-Turnir-shkolnyi-kubok\cs2-server-plugin\bin\Release\net8.0\CS2SchoolCupTracker.deps.json
+C:\Users\aetn\Desktop\CS2-Turnir-shkolnyi-kubok\cs2-server-plugin\bin\Release\net8.0\CS2SchoolCupTracker.dll
+C:\Users\aetn\Desktop\CS2-Turnir-shkolnyi-kubok\cs2-server-plugin\bin\Release\net8.0\CS2SchoolCupTracker.pdb
+C:\Users\aetn\Desktop\CS2-Turnir-shkolnyi-kubok\cs2-server-plugin\obj\Release\net8.0\CS2SchoolCupTracker.dll
+C:\Users\aetn\Desktop\CS2-Turnir-shkolnyi-kubok\cs2-server-plugin\obj\Release\net8.0\refint\CS2SchoolCupTracker.dll
+C:\Users\aetn\Desktop\CS2-Turnir-shkolnyi-kubok\cs2-server-plugin\obj\Release\net8.0\CS2SchoolCupTracker.pdb
+C:\Users\aetn\Desktop\CS2-Turnir-shkolnyi-kubok\cs2-server-plugin\obj\Release\net8.0\ref\CS2SchoolCupTracker.dll

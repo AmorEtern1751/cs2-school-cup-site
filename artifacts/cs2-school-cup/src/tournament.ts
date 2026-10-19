@@ -48,6 +48,90 @@ export interface TournamentState {
   matches: Match[];
 }
 
+export interface LivePlayer {
+  steamId: string;
+  name: string;
+  team: 'CT' | 'T' | 'SPEC';
+  health: number;
+  armor: number;
+  hasHelmet: boolean;
+  hasDefuser: boolean;
+  isAlive: boolean;
+  money: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  adr: number;
+  headshots: number;
+  hsPercentage: number;
+  mvps: number;
+  primaryWeapon: string;
+  ping: number;
+}
+
+export interface LiveBomb {
+  state: 'carried' | 'planted' | 'defusing' | 'exploded' | 'defused' | null;
+  site: 'A' | 'B' | null;
+  plantedAt: number | null;
+  planterName: string | null;
+}
+
+export interface LiveRoundHistory {
+  round: number;
+  winner: 'CT' | 'T';
+  reason: 'elimination' | 'defused' | 'exploded' | 'timeout';
+  scoreCT: number;
+  scoreT: number;
+}
+
+export interface LiveEvent {
+  id: string;
+  time: string;
+  type: 'kill' | 'bomb' | 'round' | 'info';
+  text: string;
+  attackerName?: string;
+  attackerTeam?: 'CT' | 'T';
+  victimName?: string;
+  victimTeam?: 'CT' | 'T';
+  weapon?: string;
+  headshot?: boolean;
+}
+
+export interface LiveMatchState {
+  serverConnected: boolean;
+  lastHeartbeat: number;
+  serverName: string;
+  matchId: string;
+  map: string;
+  currentRound: number;
+  phase: 'warmup' | 'live' | 'freezetime' | 'bomb_planted' | 'round_ended' | 'game_over';
+  teamCT: {
+    id?: string;
+    name: string;
+    score: number;
+    consecutiveLosses?: number;
+  };
+  teamT: {
+    id?: string;
+    name: string;
+    score: number;
+    consecutiveLosses?: number;
+  };
+  bomb: LiveBomb;
+  players: LivePlayer[];
+  roundHistory: LiveRoundHistory[];
+  recentEvents: LiveEvent[];
+  isSimulating?: boolean;
+}
+
+export interface ServerSettings {
+  serverToken: string;
+  activeMatchId: string;
+  syncIntervalMs?: number;
+  adminPassword?: string;
+}
+
 export const STORAGE_KEY = 'school-cup-cs2-demo-v3';
 export const LEGACY_STORAGE_KEY = 'school-cup-cs2-demo-v2';
 

@@ -1,8 +1,14 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import path from "node:path";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import router from "./routes";
 import { logger } from "./lib/logger";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const staticDir = path.resolve(__dirname, "../../cs2-school-cup/dist/public");
 
 const app: Express = express();
 
@@ -30,5 +36,19 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+// Serve frontend static assets if built
+if (fs.existsSync(staticDir)) {
+  app.use(express.static(staticDir));
+  app.use((req, res, next) => {
+    if (req.method === "GET" && !req.path.startsWith("/api")) {
+      const indexPath = path.join(staticDir, "index.html");
+      if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
+      }
+    }
+    next();
+  });
+}
 
 export default app;

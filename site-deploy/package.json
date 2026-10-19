@@ -1,0 +1,13 @@
+{
+  "name": "cs2-school-cup-site",
+  "version": "1.0.0",
+  "description": "Production bundle for CS2 School Cup tournament site",
+  "main": "api-server/dist/index.mjs",
+  "scripts": {
+    "start": "node api-server/dist/index.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {}
+}
