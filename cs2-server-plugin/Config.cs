@@ -6,10 +6,10 @@ namespace CS2SchoolCupTracker;
 public class PluginConfig : BasePluginConfig
 {
     [JsonPropertyName("ApiUrl")]
-    public string ApiUrl { get; set; } = "http://127.0.0.1:5000/api/server/live";
+    public string ApiUrl { get; set; } = "https://cs2-school-cup-api.onrender.com/api/server/live";
 
     [JsonPropertyName("ApiEventUrl")]
-    public string ApiEventUrl { get; set; } = "http://127.0.0.1:5000/api/server/event";
+    public string ApiEventUrl { get; set; } = "https://cs2-school-cup-api.onrender.com/api/server/event";
 
     [JsonPropertyName("ApiToken")]
     public string ApiToken { get; set; } = "cs2-school-cup-secret-2026";

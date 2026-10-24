@@ -1,0 +1,8 @@
+{
+  "ApiUrl": "https://cs2-school-cup-api.onrender.com/api/server/live",
+  "ApiEventUrl": "https://cs2-school-cup-api.onrender.com/api/server/event",
+  "ApiToken": "cs2-school-cup-secret-2026",
+  "MatchId": "m5",
+  "SyncIntervalSeconds": 1.0,
+  "ServerName": "Школьный CS2 Сервер"
+}
