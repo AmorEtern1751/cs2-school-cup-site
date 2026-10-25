@@ -10,8 +10,8 @@ out-tsc
 
 # dependencies
 node_modules
-data
 artifacts/data
+!site-deploy/data/tournament-data.json
 
 # IDEs and editors
 /.idea
