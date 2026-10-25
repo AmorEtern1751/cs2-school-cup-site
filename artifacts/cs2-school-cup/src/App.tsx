@@ -367,8 +367,8 @@ function LiveArena({
   const activeMatch = state.matches.find(m => m.id === live.matchId) ?? state.matches.find(m => m.status === 'LIVE');
   const pair = activeMatch ? resolveMatch(state, activeMatch) : { a: undefined, b: undefined };
 
-  const ctTeamName = live.teamCT?.name || pair.a?.name || 'Спецназ (CT)';
-  const tTeamName = live.teamT?.name || pair.b?.name || 'Террористы (T)';
+  const ctTeamName = pair.a?.name || live.teamCT?.name || 'Спецназ (CT)';
+  const tTeamName = pair.b?.name || live.teamT?.name || 'Террористы (T)';
   const cleanMapName = live.map ? live.map.replace(/^de_/, '').toUpperCase() : 'ANCIENT';
 
   const ctPlayers = live.players.filter(p => p.team === 'CT');
@@ -1589,9 +1589,36 @@ function Admin({
           {/* TAB 2: MATCHES */}
           {tab === 'matches' && (
             <div className="admin-card">
-              <h3>
-                Матчи и расписание <span className="eyebrow">· {state.matches.length} встреч</span>
-              </h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                <h3 style={{ margin: 0 }}>
+                  Матчи и расписание <span className="eyebrow">· {state.matches.length} встреч</span>
+                </h3>
+                <button
+                  className="primary-btn"
+                  onClick={async () => {
+                    for (const match of state.matches) {
+                      const patch: Partial<Match> = {};
+                      if (dateDrafts[match.id]) {
+                        const parsed = parseDateInput(dateDrafts[match.id]);
+                        if (parsed) patch.date = parsed;
+                      }
+                      if (timeDrafts[match.id]) {
+                        patch.time = timeDrafts[match.id];
+                      }
+                      if (mapDrafts[match.id] !== undefined) {
+                        patch.maps = parseMaps(mapDrafts[match.id]);
+                      }
+                      if (Object.keys(patch).length > 0) {
+                        await updateMatch(match.id, patch);
+                      }
+                    }
+                    notify('Все изменения матчей сохранены!');
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Save size={13} /> Сохранить все матчи
+                </button>
+              </div>
               <div className="demo-note" style={{ marginBottom: 15 }}>
                 <CircleHelp size={15} />
                 <span>

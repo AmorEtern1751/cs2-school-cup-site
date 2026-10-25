@@ -80,11 +80,17 @@ class LiveManager {
     const settings = storage.getSettings();
     const currentLive = storage.getLiveMatch();
     const targetMatchId = payload.matchId || settings.activeMatchId;
+    const tournament = storage.getTournament();
+    const activeMatch = tournament.matches.find(m => m.id === targetMatchId);
+    const resolvedPair = activeMatch ? resolveMatch(tournament, activeMatch) : { a: undefined, b: undefined };
 
     // Build updated live state
     const updatedPlayers = payload.players ?? currentLive.players;
-    const teamCT = payload.teamCT ? { ...currentLive.teamCT, ...payload.teamCT } : currentLive.teamCT;
-    const teamT = payload.teamT ? { ...currentLive.teamT, ...payload.teamT } : currentLive.teamT;
+    const teamCT = payload.teamCT ? { ...currentLive.teamCT, ...payload.teamCT } : { ...currentLive.teamCT };
+    const teamT = payload.teamT ? { ...currentLive.teamT, ...payload.teamT } : { ...currentLive.teamT };
+
+    if (resolvedPair.a?.name) teamCT.name = resolvedPair.a.name;
+    if (resolvedPair.b?.name) teamT.name = resolvedPair.b.name;
 
     const cleanMap = (payload.map || currentLive.map || 'de_mirage').replace(/^de_/, '');
     const capitalizedMap = cleanMap.charAt(0).toUpperCase() + cleanMap.slice(1);

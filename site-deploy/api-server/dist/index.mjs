@@ -32846,9 +32846,14 @@ data: ${JSON.stringify(data)}
     const settings = storage.getSettings();
     const currentLive = storage.getLiveMatch();
     const targetMatchId = payload.matchId || settings.activeMatchId;
+    const tournament = storage.getTournament();
+    const activeMatch = tournament.matches.find((m) => m.id === targetMatchId);
+    const resolvedPair = activeMatch ? resolveMatch(tournament, activeMatch) : { a: void 0, b: void 0 };
     const updatedPlayers = payload.players ?? currentLive.players;
-    const teamCT = payload.teamCT ? { ...currentLive.teamCT, ...payload.teamCT } : currentLive.teamCT;
-    const teamT = payload.teamT ? { ...currentLive.teamT, ...payload.teamT } : currentLive.teamT;
+    const teamCT = payload.teamCT ? { ...currentLive.teamCT, ...payload.teamCT } : { ...currentLive.teamCT };
+    const teamT = payload.teamT ? { ...currentLive.teamT, ...payload.teamT } : { ...currentLive.teamT };
+    if (resolvedPair.a?.name) teamCT.name = resolvedPair.a.name;
+    if (resolvedPair.b?.name) teamT.name = resolvedPair.b.name;
     const cleanMap = (payload.map || currentLive.map || "de_mirage").replace(/^de_/, "");
     const capitalizedMap = cleanMap.charAt(0).toUpperCase() + cleanMap.slice(1);
     const newLive = {
@@ -32871,8 +32876,8 @@ data: ${JSON.stringify(data)}
     storage.updateLiveMatch(newLive);
     this.broadcastLiveUpdate(newLive);
     if (targetMatchId) {
-      const tournament = storage.getTournament();
-      const match = tournament.matches.find((m) => m.id === targetMatchId);
+      const tournament2 = storage.getTournament();
+      const match = tournament2.matches.find((m) => m.id === targetMatchId);
       if (match) {
         const patch = {};
         if (match.status !== "LIVE" && match.status !== "\u0417\u0430\u0432\u0435\u0440\u0448\u0451\u043D") {
@@ -32881,7 +32886,7 @@ data: ${JSON.stringify(data)}
         patch.currentMap = capitalizedMap;
         patch.currentRound = `${teamCT.score} : ${teamT.score}`;
         if (updatedPlayers.length > 0) {
-          const resolved = resolveMatch(tournament, match);
+          const resolved = resolveMatch(tournament2, match);
           patch.players = updatedPlayers.map((p) => {
             const teamId = p.team === "CT" ? teamCT.id || resolved.a?.id || "echo" : teamT.id || resolved.b?.id || "tactic";
             return {
