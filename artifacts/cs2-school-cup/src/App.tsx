@@ -1235,6 +1235,22 @@ function Admin({
   const [dateDrafts, setDateDrafts] = useState<Record<string, string>>(() => Object.fromEntries(state.matches.map(m => [m.id, formatDateInput(m.date)])));
   const [timeDrafts, setTimeDrafts] = useState<Record<string, string>>(() => Object.fromEntries(state.matches.map(m => [m.id, m.time])));
 
+  const [teamDrafts, setTeamDrafts] = useState<Record<string, { name: string; short: string; color: string }>>(() =>
+    Object.fromEntries(state.teams.map(t => [t.id, { name: t.name, short: t.short, color: t.color }]))
+  );
+
+  useEffect(() => {
+    setTeamDrafts(prev => {
+      const next = { ...prev };
+      for (const t of state.teams) {
+        if (!next[t.id]) {
+          next[t.id] = { name: t.name, short: t.short, color: t.color };
+        }
+      }
+      return next;
+    });
+  }, [state.teams]);
+
   const notify = (text: string) => {
     setNotice(text);
     window.setTimeout(() => setNotice(''), 3000);
@@ -1671,40 +1687,106 @@ function Admin({
           {/* TAB 3: TEAMS */}
           {tab === 'teams' && (
             <div className="admin-card">
-              <h3>
-                Состав участников <span className="eyebrow">· 16 команд школы</span>
-              </h3>
-              {state.teams.map(team => (
-                <div className="admin-team-row" key={team.id}>
-                  <TeamMark team={team} />
-                  <div className="field">
-                    <label>Название команды</label>
-                    <input
-                      value={team.name}
-                      onChange={e => updateTeam(team.id, { name: e.target.value })}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Эмблема (кратко)</label>
-                    <input
-                      value={team.short}
-                      maxLength={4}
-                      onChange={e => updateTeam(team.id, { short: e.target.value.toUpperCase() })}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Цвет</label>
-                    <div className="team-color-field">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h3 style={{ margin: 0 }}>
+                  Состав участников <span className="eyebrow">· 16 команд школы</span>
+                </h3>
+                <button
+                  className="primary-btn"
+                  onClick={async () => {
+                    for (const team of state.teams) {
+                      const draft = teamDrafts[team.id];
+                      if (draft && (draft.name !== team.name || draft.short !== team.short || draft.color !== team.color)) {
+                        await updateTeam(team.id, draft);
+                      }
+                    }
+                    notify('Все команды успешно сохранены!');
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Save size={13} /> Сохранить все команды
+                </button>
+              </div>
+              {state.teams.map(team => {
+                const draft = teamDrafts[team.id] ?? { name: team.name, short: team.short, color: team.color };
+                const isChanged = draft.name !== team.name || draft.short !== team.short || draft.color !== team.color;
+
+                const saveThisTeam = async () => {
+                  await updateTeam(team.id, draft);
+                  notify(`Команда "${draft.name}" сохранена!`);
+                };
+
+                return (
+                  <div className="admin-team-row" key={team.id}>
+                    <TeamMark team={{ ...team, ...draft }} />
+                    <div className="field">
+                      <label>Название команды</label>
                       <input
-                        type="color"
-                        value={team.color}
-                        onChange={e => updateTeam(team.id, { color: e.target.value })}
+                        value={draft.name}
+                        onChange={e =>
+                          setTeamDrafts(prev => ({
+                            ...prev,
+                            [team.id]: { ...(prev[team.id] ?? team), name: e.target.value },
+                          }))
+                        }
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') saveThisTeam();
+                        }}
                       />
-                      <span>{team.color}</span>
+                    </div>
+                    <div className="field">
+                      <label>Эмблема (кратко)</label>
+                      <input
+                        value={draft.short}
+                        maxLength={4}
+                        onChange={e =>
+                          setTeamDrafts(prev => ({
+                            ...prev,
+                            [team.id]: { ...(prev[team.id] ?? team), short: e.target.value.toUpperCase() },
+                          }))
+                        }
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') saveThisTeam();
+                        }}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Цвет</label>
+                      <div className="team-color-field">
+                        <input
+                          type="color"
+                          value={draft.color}
+                          onChange={e =>
+                            setTeamDrafts(prev => ({
+                              ...prev,
+                              [team.id]: { ...(prev[team.id] ?? team), color: e.target.value },
+                            }))
+                          }
+                        />
+                        <span>{draft.color}</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', height: '100%', paddingBottom: 2 }}>
+                      <button
+                        className={isChanged ? 'primary-btn' : 'soft-btn'}
+                        onClick={saveThisTeam}
+                        title="Сохранить изменения команды"
+                        style={{
+                          padding: '7px 10px',
+                          fontSize: 10,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          whiteSpace: 'nowrap',
+                          opacity: isChanged ? 1 : 0.65,
+                        }}
+                      >
+                        <Save size={12} /> {isChanged ? 'Сохранить' : 'Сохранено'}
+                      </button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
