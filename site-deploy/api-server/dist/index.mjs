@@ -32852,10 +32852,31 @@ data: ${JSON.stringify(data)}
     const updatedPlayers = payload.players ?? currentLive.players;
     const teamCT = payload.teamCT ? { ...currentLive.teamCT, ...payload.teamCT } : { ...currentLive.teamCT };
     const teamT = payload.teamT ? { ...currentLive.teamT, ...payload.teamT } : { ...currentLive.teamT };
-    if (resolvedPair.a?.name) teamCT.name = resolvedPair.a.name;
-    if (resolvedPair.b?.name) teamT.name = resolvedPair.b.name;
     const cleanMap = (payload.map || currentLive.map || "de_mirage").replace(/^de_/, "");
     const capitalizedMap = cleanMap.charAt(0).toUpperCase() + cleanMap.slice(1);
+    const ctScore = teamCT.score ?? 0;
+    const tScore = teamT.score ?? 0;
+    const currentRoundNumber = payload.currentRound ?? ctScore + tScore + 1;
+    let isTeamACurrentlyCT = true;
+    if (currentRoundNumber <= 12) {
+      isTeamACurrentlyCT = true;
+    } else if (currentRoundNumber <= 24) {
+      isTeamACurrentlyCT = false;
+    } else {
+      const otRound = currentRoundNumber - 24;
+      const otHalf = Math.floor((otRound - 1) / 3);
+      isTeamACurrentlyCT = otHalf % 2 === 1;
+    }
+    const teamForCT = isTeamACurrentlyCT ? resolvedPair.a : resolvedPair.b;
+    const teamForT = isTeamACurrentlyCT ? resolvedPair.b : resolvedPair.a;
+    if (teamForCT) {
+      teamCT.name = teamForCT.name;
+      teamCT.id = teamForCT.id;
+    }
+    if (teamForT) {
+      teamT.name = teamForT.name;
+      teamT.id = teamForT.id;
+    }
     const newLive = {
       ...currentLive,
       serverConnected: true,

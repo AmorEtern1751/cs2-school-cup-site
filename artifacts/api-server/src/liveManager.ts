@@ -89,11 +89,39 @@ class LiveManager {
     const teamCT = payload.teamCT ? { ...currentLive.teamCT, ...payload.teamCT } : { ...currentLive.teamCT };
     const teamT = payload.teamT ? { ...currentLive.teamT, ...payload.teamT } : { ...currentLive.teamT };
 
-    if (resolvedPair.a?.name) teamCT.name = resolvedPair.a.name;
-    if (resolvedPair.b?.name) teamT.name = resolvedPair.b.name;
-
     const cleanMap = (payload.map || currentLive.map || 'de_mirage').replace(/^de_/, '');
     const capitalizedMap = cleanMap.charAt(0).toUpperCase() + cleanMap.slice(1);
+
+    // Track which team (Team A or Team B) is currently playing as CT
+    // In CS2, teams swap sides at half-time (round 13 for MR12, or round 15 for MR15)
+    // and can swap during overtimes (every 3 rounds).
+    const ctScore = teamCT.score ?? 0;
+    const tScore = teamT.score ?? 0;
+    const currentRoundNumber = payload.currentRound ?? (ctScore + tScore + 1);
+
+    let isTeamACurrentlyCT = true;
+    if (currentRoundNumber <= 12) {
+      isTeamACurrentlyCT = true;
+    } else if (currentRoundNumber <= 24) {
+      isTeamACurrentlyCT = false;
+    } else {
+      // Overtime: 3 rounds per half (25-27, 28-30, etc.)
+      const otRound = currentRoundNumber - 24;
+      const otHalf = Math.floor((otRound - 1) / 3);
+      isTeamACurrentlyCT = otHalf % 2 === 1;
+    }
+
+    const teamForCT = isTeamACurrentlyCT ? resolvedPair.a : resolvedPair.b;
+    const teamForT = isTeamACurrentlyCT ? resolvedPair.b : resolvedPair.a;
+
+    if (teamForCT) {
+      teamCT.name = teamForCT.name;
+      teamCT.id = teamForCT.id;
+    }
+    if (teamForT) {
+      teamT.name = teamForT.name;
+      teamT.id = teamForT.id;
+    }
 
     const newLive: LiveMatchState = {
       ...currentLive,

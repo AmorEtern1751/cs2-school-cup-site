@@ -367,8 +367,11 @@ function LiveArena({
   const activeMatch = state.matches.find(m => m.id === live.matchId) ?? state.matches.find(m => m.status === 'LIVE');
   const pair = activeMatch ? resolveMatch(state, activeMatch) : { a: undefined, b: undefined };
 
-  const ctTeamName = pair.a?.name || live.teamCT?.name || 'Спецназ (CT)';
-  const tTeamName = pair.b?.name || live.teamT?.name || 'Террористы (T)';
+  const ctTeam = (live.teamCT?.id === pair.b?.id ? pair.b : pair.a) ?? { name: live.teamCT?.name || 'Спецназ (CT)' };
+  const tTeam = (live.teamT?.id === pair.a?.id ? pair.a : pair.b) ?? { name: live.teamT?.name || 'Террористы (T)' };
+
+  const ctTeamName = live.teamCT?.name || ctTeam.name || 'Спецназ (CT)';
+  const tTeamName = live.teamT?.name || tTeam.name || 'Террористы (T)';
   const cleanMapName = live.map ? live.map.replace(/^de_/, '').toUpperCase() : 'ANCIENT';
 
   const ctPlayers = live.players.filter(p => p.team === 'CT');
@@ -417,7 +420,7 @@ function LiveArena({
       <div className="live-matchup">
         {/* Team CT */}
         <div className="live-team-side">
-          <TeamMark team={pair.a} size="large" />
+          <TeamMark team={ctTeam} size="large" />
           <div>
             <div className="live-team-title">{ctTeamName}</div>
             <span className="live-team-role role-ct">COUNTER-TERRORISTS</span>
@@ -440,7 +443,7 @@ function LiveArena({
             <div className="live-team-title">{tTeamName}</div>
             <span className="live-team-role role-t">TERRORISTS</span>
           </div>
-          <TeamMark team={pair.b} size="large" />
+          <TeamMark team={tTeam} size="large" />
         </div>
       </div>
 
