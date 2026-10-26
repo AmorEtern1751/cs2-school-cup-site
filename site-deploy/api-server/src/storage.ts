@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Pool } from 'pg';
 import {
   TournamentState,
   ServerSettings,
@@ -144,9 +145,77 @@ interface StoredData {
 class Storage {
   private data: StoredData;
   private saveTimeout: NodeJS.Timeout | null = null;
+  private readonly pool = process.env.DATABASE_URL
+    ? new Pool({ connectionString: process.env.DATABASE_URL, max: 5 })
+    : null;
+  private pendingSave: Promise<void> = Promise.resolve();
 
   constructor() {
     this.data = this.load();
+  }
+
+  public async initialize(): Promise<void> {
+    if (!this.pool) {
+      console.info('DATABASE_URL is not set; using local JSON storage.');
+      return;
+    }
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS tournament_state (
+        id text PRIMARY KEY,
+        state jsonb NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    const result = await this.pool.query<{ state: StoredData }>(
+      'SELECT state FROM tournament_state WHERE id = $1', ['main'],
+    );
+
+    if (result.rows[0]?.state) {
+      this.data = result.rows[0].state;
+      console.info('Tournament state loaded from Neon Postgres.');
+      return;
+    }
+
+    // First boot: preserve the existing JSON state instead of replacing it with defaults.
+    await this.pool.query(
+      'INSERT INTO tournament_state (id, state) VALUES ($1, $2::jsonb) ON CONFLICT (id) DO NOTHING',
+      ['main', JSON.stringify(this.data)],
+    );
+    const migrated = await this.pool.query<{ state: StoredData }>(
+      'SELECT state FROM tournament_state WHERE id = $1', ['main'],
+    );
+    if (migrated.rows[0]?.state) this.data = migrated.rows[0].state;
+    console.info('Tournament state initialized in Neon Postgres.');
+  }
+
+  public async flush(): Promise<void> {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
+    }
+    await this.persist();
+  }
+
+  private async persist(): Promise<void> {
+    const snapshot = JSON.stringify(this.data);
+    const write = this.pendingSave.then(async () => {
+      if (this.pool) {
+        await this.pool.query(
+          `INSERT INTO tournament_state (id, state, updated_at) VALUES ($1, $2::jsonb, now())
+           ON CONFLICT (id) DO UPDATE SET state = EXCLUDED.state, updated_at = now()`,
+          ['main', snapshot],
+        );
+      }
+      if (!this.pool || process.env.PERSIST_LOCAL_BACKUP === 'true') {
+        if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+        fs.writeFileSync(DATA_FILE, snapshot, 'utf-8');
+      }
+    });
+    this.pendingSave = write.catch((err) => {
+      console.error('Failed to persist tournament state:', err);
+    });
+    return write;
   }
 
   private load(): StoredData {
@@ -167,24 +236,15 @@ class Storage {
       settings: defaultSettings,
       liveMatch: defaultLiveState,
     };
-    this.scheduleSave(initial);
     return initial;
   }
 
-  private scheduleSave(dataToSave?: StoredData) {
+  private scheduleSave() {
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
     }
     this.saveTimeout = setTimeout(() => {
-      try {
-        if (!fs.existsSync(DATA_DIR)) {
-          fs.mkdirSync(DATA_DIR, { recursive: true });
-        }
-        const toWrite = dataToSave || this.data;
-        fs.writeFileSync(DATA_FILE, JSON.stringify(toWrite, null, 2), 'utf-8');
-      } catch (err) {
-        console.error('Failed to save tournament data:', err);
-      }
+      void this.persist().catch(() => undefined);
     }, 300);
   }
 

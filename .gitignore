@@ -13,6 +13,11 @@ node_modules
 artifacts/data
 !site-deploy/data/tournament-data.json
 
+# Local environment secrets
+.env
+.env.*
+!.env.example
+
 # IDEs and editors
 /.idea
 .project

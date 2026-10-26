@@ -48,13 +48,14 @@ router.get('/admin/auth-check', verifyAdminAuth, (_req, res) => {
  * Change admin password
  * POST /api/admin/change-password
  */
-router.post('/admin/change-password', verifyAdminAuth, (req, res) => {
+router.post('/admin/change-password', verifyAdminAuth, async (req, res) => {
   const { newPassword } = req.body;
   if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 4) {
     return res.status(400).json({ error: 'Пароль должен содержать не менее 4 символов' });
   }
 
   storage.updateSettings({ adminPassword: newPassword.trim() });
+  await storage.flush();
   return res.json({ success: true, message: 'Пароль успешно изменён' });
 });
 
@@ -65,8 +66,9 @@ router.get('/admin/settings', verifyAdminAuth, (_req, res) => {
   res.json(storage.getSettings());
 });
 
-router.post('/admin/settings', verifyAdminAuth, (req, res) => {
+router.post('/admin/settings', verifyAdminAuth, async (req, res) => {
   const updated = storage.updateSettings(req.body);
+  await storage.flush();
   liveManager.broadcast('settings_update', updated);
   res.json(updated);
 });
