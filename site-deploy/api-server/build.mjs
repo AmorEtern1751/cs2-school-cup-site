@@ -16,6 +16,10 @@ async function buildAll() {
 
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    alias: {
+      "@workspace/api-zod": path.resolve(artifactDir, "../../lib/api-zod/src/index.ts"),
+    },
+    nodePaths: [path.resolve(artifactDir, "node_modules")],
     platform: "node",
     bundle: true,
     format: "esm",
