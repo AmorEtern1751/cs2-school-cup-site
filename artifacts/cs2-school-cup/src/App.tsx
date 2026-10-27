@@ -888,6 +888,26 @@ function Home({ state }: { state: TournamentState }) {
     </main>
   );
 }
+function mapText(match: Match) {
+  return match.maps.map(map => `${map.a}-${map.b}@${map.map}`).join(', ');
+}
+
+function formatDateInput(value: string) {
+  const date = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return date ? `${date[3]}.${date[2]}.${date[1]}` : value;
+}
+
+function parseDateInput(value: string) {
+  const date = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(value.trim());
+  if (!date) return null;
+  const [, dayText, monthText, yearText] = date;
+  const day = Number(dayText),
+    month = Number(monthText),
+    year = Number(yearText);
+  const checked = new Date(Date.UTC(year, month - 1, day));
+  if (checked.getUTCDate() !== day || checked.getUTCMonth() !== month - 1 || checked.getUTCFullYear() !== year) return null;
+  return `${yearText}-${monthText}-${dayText}`;
+}
 /**
  * Admin Login Component - shown to visitors who do not have admin credentials
  */
