@@ -88,13 +88,9 @@ function useTournament(adminToken?: string) {
       .finally(() => setLoading(false));
   }, []);
 
-  const updateMatch = async (id: string, patch: Partial<Match>) => {
-    setState(current => ({
-      ...current,
-      matches: current.matches.map(match => (match.id === id ? { ...match, ...patch } : match)),
-    }));
+  const updateMatch = async (id: string, patch: Partial<Match>): Promise<boolean> => {
     try {
-      await fetch(`/api/tournament/match/${id}`, {
+      const response = await fetch(`/api/tournament/match/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -102,9 +98,17 @@ function useTournament(adminToken?: string) {
         },
         body: JSON.stringify(patch),
       });
-    } catch {}
+      if (!response.ok) return false;
+      const savedMatch = (await response.json()) as Match;
+      setState(current => ({
+        ...current,
+        matches: current.matches.map(match => (match.id === id ? savedMatch : match)),
+      }));
+      return true;
+    } catch {
+      return false;
+    }
   };
-
   const updateTeam = async (id: string, patch: Partial<Team>) => {
     setState(current => ({
       ...current,
@@ -888,6 +892,21 @@ function Home({ state }: { state: TournamentState }) {
     </main>
   );
 }
+function parseMaps(value: string): Match['maps'] {
+  return value
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .map((part, index) => {
+      const [scores, mapName] = part.split('@').map(item => item.trim());
+      const [a, b] = scores.split(/[-:]/).map(Number);
+      return {
+        map: mapName || ['Mirage', 'Ancient', 'Inferno', 'Nuke', 'Dust2'][index % 5],
+        a: Number.isFinite(a) ? a : 0,
+        b: Number.isFinite(b) ? b : 0,
+      };
+    });
+}
 function mapText(match: Match) {
   return match.maps.map(map => `${map.a}-${map.b}@${map.map}`).join(', ');
 }
@@ -981,7 +1000,7 @@ function Admin({
   onLogout,
 }: {
   state: TournamentState;
-  updateMatch: (id: string, patch: Partial<Match>) => void;
+  updateMatch: (id: string, patch: Partial<Match>) => Promise<boolean>;
   updateTeam: (id: string, patch: Partial<Team>) => void;
   reset: () => void;
   setState: Dispatch<SetStateAction<TournamentState>>;
@@ -1000,10 +1019,12 @@ function Admin({
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [newAdminPass, setNewAdminPass] = useState('');
 
-  const [mapDrafts, setMapDrafts] = useState<Record<string, string>>(() => Object.fromEntries(state.matches.map(m => [m.id, mapText(m)])));
-  const [dateDrafts, setDateDrafts] = useState<Record<string, string>>(() => Object.fromEntries(state.matches.map(m => [m.id, formatDateInput(m.date)])));
-  const [timeDrafts, setTimeDrafts] = useState<Record<string, string>>(() => Object.fromEntries(state.matches.map(m => [m.id, m.time])));
-
+  const [mapDrafts, setMapDrafts] = useState<Record<string, string>>({});
+  const [dateDrafts, setDateDrafts] = useState<Record<string, string>>({});
+  const [timeDrafts, setTimeDrafts] = useState<Record<string, string>>({});
+  const [currentMapDrafts, setCurrentMapDrafts] = useState<Record<string, string>>({});
+  const [currentRoundDrafts, setCurrentRoundDrafts] = useState<Record<string, string>>({});
+  const [twitchDrafts, setTwitchDrafts] = useState<Record<string, string>>({});
   const [teamDrafts, setTeamDrafts] = useState<Record<string, { name: string; short: string; color: string }>>(() =>
     Object.fromEntries(state.teams.map(t => [t.id, { name: t.name, short: t.short, color: t.color }]))
   );
@@ -1025,6 +1046,34 @@ function Admin({
     window.setTimeout(() => setNotice(''), 3000);
   };
 
+  const saveMatchPatch = async (
+    id: string,
+    patch: Partial<Match>,
+    draftKeys: Array<'maps' | 'date' | 'time' | 'currentMap' | 'currentRound' | 'twitch'> = [],
+    showError = true,
+  ) => {
+    const saved = await updateMatch(id, patch);
+    if (!saved) {
+      if (showError) notify('Не удалось сохранить матч. Проверь вход и соединение с сервером.');
+      return false;
+    }
+    const draftSetters = {
+      maps: setMapDrafts,
+      date: setDateDrafts,
+      time: setTimeDrafts,
+      currentMap: setCurrentMapDrafts,
+      currentRound: setCurrentRoundDrafts,
+      twitch: setTwitchDrafts,
+    };
+    for (const key of draftKeys) {
+      draftSetters[key](current => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+    }
+    return true;
+  };
   const webhookUrl = `${window.location.protocol}//${window.location.hostname}:5000/api/server/live`;
 
   const copyWebhook = () => {
@@ -1365,25 +1414,45 @@ function Admin({
                 <button
                   className="primary-btn"
                   onClick={async () => {
+                    let failed = false;
                     for (const match of state.matches) {
                       const patch: Partial<Match> = {};
-                      if (dateDrafts[match.id]) {
+                      const keys: Array<'maps' | 'date' | 'time' | 'currentMap' | 'currentRound' | 'twitch'> = [];
+                      if (dateDrafts[match.id] !== undefined) {
                         const parsed = parseDateInput(dateDrafts[match.id]);
-                        if (parsed) patch.date = parsed;
+                        if (!parsed) {
+                          failed = true;
+                          continue;
+                        }
+                        patch.date = parsed;
+                        keys.push('date');
                       }
-                      if (timeDrafts[match.id]) {
+                      if (timeDrafts[match.id] !== undefined) {
                         patch.time = timeDrafts[match.id];
+                        keys.push('time');
                       }
                       if (mapDrafts[match.id] !== undefined) {
                         patch.maps = parseMaps(mapDrafts[match.id]);
+                        keys.push('maps');
                       }
-                      if (Object.keys(patch).length > 0) {
-                        await updateMatch(match.id, patch);
+                      if (currentMapDrafts[match.id] !== undefined) {
+                        patch.currentMap = currentMapDrafts[match.id];
+                        keys.push('currentMap');
+                      }
+                      if (currentRoundDrafts[match.id] !== undefined) {
+                        patch.currentRound = currentRoundDrafts[match.id];
+                        keys.push('currentRound');
+                      }
+                      if (twitchDrafts[match.id] !== undefined) {
+                        patch.twitch = twitchDrafts[match.id];
+                        keys.push('twitch');
+                      }
+                      if (Object.keys(patch).length > 0 && !(await saveMatchPatch(match.id, patch, keys, false))) {
+                        failed = true;
                       }
                     }
-                    notify('Все изменения матчей сохранены!');
-                  }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    notify(failed ? 'Не все изменения сохранены. Проверь дату и соединение с сервером.' : 'Все изменения матчей сохранены!');
+                  }}                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
                   <Save size={13} /> Сохранить все матчи
                 </button>
@@ -1419,8 +1488,14 @@ function Admin({
                               placeholder="ДД.ММ.ГГГГ"
                               onChange={e => setDateDrafts({ ...dateDrafts, [match.id]: e.target.value })}
                               onBlur={() => {
-                                const parsed = parseDateInput(dateDrafts[match.id]);
-                                if (parsed) updateMatch(match.id, { date: parsed });
+                                const value = dateDrafts[match.id];
+                                if (value === undefined) return;
+                                const parsed = parseDateInput(value);
+                                if (!parsed) {
+                                  notify('Укажи дату в формате ДД.ММ.ГГГГ.');
+                                  return;
+                                }
+                                void saveMatchPatch(match.id, { date: parsed }, ['date']);
                               }}
                             />
                             <input
@@ -1429,12 +1504,12 @@ function Admin({
                               value={timeDrafts[match.id] ?? match.time}
                               placeholder="ЧЧ:ММ"
                               onChange={e => setTimeDrafts({ ...timeDrafts, [match.id]: e.target.value })}
-                              onBlur={() => updateMatch(match.id, { time: timeDrafts[match.id] })}
+                              onBlur={() => timeDrafts[match.id] !== undefined && void saveMatchPatch(match.id, { time: timeDrafts[match.id] }, ['time'])}
                             />
                             <select
                               className="status-select"
                               value={match.status}
-                              onChange={e => updateMatch(match.id, { status: e.target.value as MatchStatus })}
+                              onChange={e => void saveMatchPatch(match.id, { status: e.target.value as MatchStatus })}
                             >
                               <option>Скоро</option>
                               <option>LIVE</option>
@@ -1447,29 +1522,33 @@ function Admin({
                               placeholder="13-8@Mirage, 13-10@Ancient"
                               onChange={e => setMapDrafts({ ...mapDrafts, [match.id]: e.target.value })}
                               onBlur={() => {
-                                const parsed = parseMaps(mapDrafts[match.id] ?? '');
-                                updateMatch(match.id, { maps: parsed });
+                                if (mapDrafts[match.id] === undefined) return;
+                                const parsed = parseMaps(mapDrafts[match.id]);
+                                void saveMatchPatch(match.id, { maps: parsed }, ['maps']);
                               }}
                             />
                             <input
                               className="compact-input"
-                              value={match.currentMap}
+                              value={currentMapDrafts[match.id] ?? match.currentMap}
                               placeholder="Текущая карта"
-                              onChange={e => updateMatch(match.id, { currentMap: e.target.value })}
+                              onChange={e => setCurrentMapDrafts({ ...currentMapDrafts, [match.id]: e.target.value })}
+                              onBlur={() => currentMapDrafts[match.id] !== undefined && void saveMatchPatch(match.id, { currentMap: currentMapDrafts[match.id] }, ['currentMap'])}
                             />
                             <input
                               className="compact-input"
-                              value={match.currentRound}
+                              value={currentRoundDrafts[match.id] ?? match.currentRound}
                               placeholder="Раунд (19:12)"
-                              onChange={e => updateMatch(match.id, { currentRound: e.target.value })}
+                              onChange={e => setCurrentRoundDrafts({ ...currentRoundDrafts, [match.id]: e.target.value })}
+                              onBlur={() => currentRoundDrafts[match.id] !== undefined && void saveMatchPatch(match.id, { currentRound: currentRoundDrafts[match.id] }, ['currentRound'])}
                             />
                             <input
                               className="compact-input"
                               style={{ gridColumn: '1 / 3' }}
                               type="url"
-                              value={match.twitch ?? ''}
+                              value={twitchDrafts[match.id] ?? match.twitch ?? ''}
                               placeholder="Ссылка на трансляцию Twitch (необязательно)"
-                              onChange={e => updateMatch(match.id, { twitch: e.target.value })}
+                              onChange={e => setTwitchDrafts({ ...twitchDrafts, [match.id]: e.target.value })}
+                              onBlur={() => twitchDrafts[match.id] !== undefined && void saveMatchPatch(match.id, { twitch: twitchDrafts[match.id] }, ['twitch'])}
                             />
                           </div>
                         </div>
